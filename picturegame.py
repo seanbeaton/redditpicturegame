@@ -62,8 +62,6 @@ class Bot(object):
 			response = client.post('http://www.reddit.com/api/update', data=data, headers=headers)
 		self.game_password = new_password
 
-		print new_password
-
 		# just to make sure we didn't muck up any login data
 		self.r.login(config['USERNAME'], config['PASSWORD'])
 
@@ -94,7 +92,6 @@ Please send your solution to me via the link in the sidebar, THEN post the next 
 		while True:
 			if self.post_up:
 				# check if any of the comments got it right
-				print "Entered post_up branch"
 				post = self.r.get_submission(submission_id=self.current_post, comment_sort='new')
 				for cmt in post.comments:
 					if cmt.id in self.checked_comments:
@@ -109,7 +106,6 @@ Please send your solution to me via the link in the sidebar, THEN post the next 
 
 			else:
 				# wait for the last winner to give us the new solution and put up the next post
-				print "Entered else branch"
 				newest_post, status = self.get_newest_post()
 				for msg in self.r.get_unread():
 					msg.mark_as_read()
@@ -134,7 +130,6 @@ Please send your solution to me via the link in the sidebar, THEN post the next 
 					newest_post.remove()
 				elif status == Constants.VALID_POST:
 					if self.solution:
-						print "pls no"
 						self.current_post = newest_post.id
 						self.post_up = True
 					else:
