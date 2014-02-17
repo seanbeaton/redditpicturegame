@@ -1,13 +1,13 @@
 config = {
-	#update those values accordingly
+    #update those values accordingly
 
-	#account data for the mod account
+    #account data for the mod account
     'USERNAME': '',
     'PASSWORD': '',
-    
+
     #the account that posts the rounds
     'GAMEACCOUNT': '',
 
-  	#the game subreddit
+    #the game subreddit
     'SUBREDDIT': ''
 }
