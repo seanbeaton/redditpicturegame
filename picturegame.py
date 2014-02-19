@@ -3,15 +3,16 @@ import random
 import string
 import time
 import requests
-import re
+import itertools
 import sys
 from config import config
 
 class Constants:
-    TWO_HOURS = 2 * 60 * 60
+    TWENTY_MINUTES = 20 * 60
     NO_NEW_POST = 0
     INVALID_POST = 1
     VALID_POST = 2
+    IGNORE = set('and', 'the', 'in', 'or')
 
 class Bot(object):
 
@@ -66,6 +67,16 @@ class Bot(object):
         self.r.login(config['USERNAME'], config['PASSWORD'])
 
 
+    def flair_winner(self):
+        cur_flair = self.r.get_flair(config['SUBREDDIT'], self.current_op)
+        new_flair = ''
+        if not cur_flair:
+            new_flair = "Round %d" % (self.current_round,)
+        else:
+            new_flair = cur_flair['flair_text'] + ', ' + str(self.current_round)
+        self.r.set_flair(config['SUBREDDIT'], self.current_op, flair_text=new_flair,
+            flair_css_class="winner")
+
     def win(self, cmt):
         cmt.reply("Congratulations, that was the correct answer! Please continue the game as soon as possible. You have been PM'd the new account info.")
         self.post_up = False
@@ -74,19 +85,29 @@ class Bot(object):
         self.reset_game_password()
         self.correct_answer_time = time.time()
         self.current_op = str(cmt.author)
+        self.flair_winner()
         self.current_round += 1
         won_post = self.r.get_submission(submission_id=self.current_post)
         self.current_post = ''
-        won_post.set_flair(flair_text="ROUND OVER")
+        won_post.set_flair(flair_text="ROUND OVER", flair_css_class="over")
         subject = "Congratulations, you can post the next round!"
         msg_text = 'The password for /u/%s is %s. DO NOT CHANGE THIS PASSWORD. It will be automatically changed once someone solves your riddle. \
-Please send your solution to me via the link in the sidebar, THEN post the next round. The post should have the format "Round %d: ..."' % (self.game_acc, self.game_password, self.current_round)
+Please send your solution to me via the link in the sidebar, THEN post the next round. The post should have the format "Round %d: ...". \
+The solution should be as unambiguous as possible and not include "meaningless" words like "and", "the", "or" etc. Please put your post up within \
+20 minutes starting from now.' % (self.game_acc, self.game_password, self.current_round)
         self.r.send_message(self.current_op, subject, msg_text)
 
 
     def get_random_password(self, size=8):
         chars = string.ascii_letters + string.digits
         return ''.join(random.choice(chars) for x in range(size))
+
+    def correct_answer(self, text):
+        text = itertools.permutations(filter(lambda x: x not in Constants.IGNORE, text.split(' ')))
+        for perm in text:
+            if ''.join(perm) == self.solution:
+                return True
+        return False
 
     def run(self):
         while True:
@@ -99,8 +120,8 @@ Please send your solution to me via the link in the sidebar, THEN post the next 
                     self.checked_comments.add(cmt.id)
                     text = cmt.body.lower()
                     if text.startswith('guess: '):
-                        text = text.lstrip('guess:').replace(' ', '')
-                        if text == self.solution:
+                        text = text.lstrip('guess:')
+                        if self.correct_answer(text):
                             self.win(cmt)
                             break
 
@@ -120,9 +141,10 @@ Please send your solution to me via the link in the sidebar, THEN post the next 
                             self.solution = msg.body.lower().replace(' ', '')
                         self.r.send_message(self.current_op, subject, message)
                 if status == Constants.NO_NEW_POST:
-                    if time.time() - self.correct_answer_time > Constants.TWO_HOURS:
-                        #TODO: Handle lazy users
-                        pass
+                    if time.time() - self.correct_answer_time > Constants.TWENTY_MINUTES:
+                        subject = "OP inactivity"
+                        message = "The current OP, /u/%s, didn't do anything with the account for twenty minutes." % (self.current_op,)
+                        self.r.send_message('/r/' + config['SUBREDDIT'], subject, message)
                 elif status == Constants.INVALID_POST:
                     subject = "Invalid Post"
                     message = "Please resubmit your post and put [Round XXX] at the beginning."
@@ -144,8 +166,10 @@ Please send your solution to me via the link in the sidebar, THEN post the next 
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 6:
+    if len(sys.argv) == 6:
+        Bot(*sys.argv[1:]).run()
+    else:
         print """Please provide the current password to the picturegame account, the current
 solution, the current OP, the ID of the current post and the current round
 number as CLI argument."""
-    Bot(*sys.argv[1:]).run()
+    
