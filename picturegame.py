@@ -12,7 +12,7 @@ class Constants:
     NO_NEW_POST = 0
     INVALID_POST = 1
     VALID_POST = 2
-    IGNORE = set('and', 'the', 'in', 'or')
+    IGNORE = set(['and', 'the', 'in', 'or'])
 
 class Bot(object):
 
