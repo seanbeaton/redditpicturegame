@@ -70,7 +70,7 @@ class Bot(object):
     def flair_winner(self):
         cur_flair = self.r.get_flair(config['SUBREDDIT'], self.current_op)
         new_flair = ''
-        if not cur_flair:
+        if not cur_flair.get('flair_text', None):
             new_flair = "Round %d" % (self.current_round,)
         else:
             new_flair = cur_flair['flair_text'] + ', ' + str(self.current_round)
