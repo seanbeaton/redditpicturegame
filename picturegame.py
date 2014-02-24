@@ -74,16 +74,21 @@ class Bot(object):
             new_flair = "Round %d" % (self.current_round,)
         else:
             new_flair = cur_flair['flair_text'] + ', ' + str(self.current_round)
+            while len(new_flair) >= 64:
+                idx = new_flair.find(',')
+                new_flair = "Round" + new_flair[idx+1:]
         self.r.set_flair(config['SUBREDDIT'], self.current_op, flair_text=new_flair,
             flair_css_class="winner")
 
     def win(self, cmt):
-        cmt.reply("Congratulations, that was the correct answer! Please continue the game as soon as possible. You have been PM'd the new account info.")
+        reply = cmt.reply("Congratulations, that was the correct answer! Please continue the game as soon as possible. You have been PM'd the new account info.")
+        reply.distinguish()
         self.post_up = False
         self.checked_comments = set()
         self.solution = ''
         self.reset_game_password()
         self.correct_answer_time = time.time()
+        # first update the op, then call flair_winner!
         self.current_op = str(cmt.author)
         self.flair_winner()
         self.current_round += 1
@@ -93,7 +98,7 @@ class Bot(object):
         subject = "Congratulations, you can post the next round!"
         msg_text = 'The password for /u/%s is %s. DO NOT CHANGE THIS PASSWORD. It will be automatically changed once someone solves your riddle. \
 Please send your solution to me via the link in the sidebar, THEN post the next round. The post should have the format "Round %d: ...". \
-The solution should be as unambiguous as possible and not include "meaningless" words like "and", "the", "or" etc. Please put your post up within \
+The solution should be as unambiguous as possible, everything other than letters and digits will be ignored, as well as "filler" words like "and", "or", "the" etc. Please put your post up within \
 20 minutes starting from now.' % (self.game_acc, self.game_password, self.current_round)
         self.r.send_message(self.current_op, subject, msg_text)
 
@@ -103,11 +108,17 @@ The solution should be as unambiguous as possible and not include "meaningless" 
         return ''.join(random.choice(chars) for x in range(size))
 
     def correct_answer(self, text):
+        text = ''.join(filter(lambda x: x in string.ascii_letters + ' ' + string.digits, text))
         text = itertools.permutations(filter(lambda x: x not in Constants.IGNORE, text.split(' ')))
         for perm in text:
             if ''.join(perm) == self.solution:
                 return True
         return False
+
+    def sanitize(self, text):
+        text = ''.join(filter(lambda x: x in string.ascii_letters + ' ' + string.digits, text))
+        text = ''.join(filter(lambda x: x not in Constants.IGNORE, text.split(' ')))
+        return text
 
     def run(self):
         while True:
@@ -118,6 +129,8 @@ The solution should be as unambiguous as possible and not include "meaningless" 
                     if cmt.id in self.checked_comments:
                         break
                     self.checked_comments.add(cmt.id)
+                    if cmt.author == self.current_op:
+                        continue
                     text = cmt.body.lower()
                     if text.startswith('guess: '):
                         text = text.lstrip('guess:')
@@ -130,25 +143,25 @@ The solution should be as unambiguous as possible and not include "meaningless" 
                 newest_post, status = self.get_newest_post()
                 for msg in self.r.get_unread():
                     msg.mark_as_read()
-                    if (msg.subject.lower() == "round " + str(self.current_round)
-                        and str(msg.author) == self.current_op or str(msg.author) == str(self.game_acc)):
+                    if (str(msg.author) == self.current_op or str(msg.author) == str(self.game_acc)):
                         if self.solution:
                             subject = "Sorry..."
                             message = "But you can't change the password during the round."
                         else:
                             subject = "Success"
                             message = "Password successfully set."
-                            self.solution = msg.body.lower().replace(' ', '')
-                        self.r.send_message(self.current_op, subject, message)
+                            self.solution = self.sanitize(msg.body)
+                        self.r.send_message(self.game_acc, subject, message)
                 if status == Constants.NO_NEW_POST:
                     if time.time() - self.correct_answer_time > Constants.TWENTY_MINUTES:
                         subject = "OP inactivity"
                         message = "The current OP, /u/%s, didn't do anything with the account for twenty minutes." % (self.current_op,)
                         self.r.send_message('/r/' + config['SUBREDDIT'], subject, message)
+                        return
                 elif status == Constants.INVALID_POST:
                     subject = "Invalid Post"
                     message = "Please resubmit your post and put [Round XXX] at the beginning."
-                    self.r.send_message(self.current_op, subject, message)
+                    self.r.send_message(self.game_acc, subject, message)
                     newest_post.remove()
                 elif status == Constants.VALID_POST:
                     if self.solution:
@@ -157,7 +170,7 @@ The solution should be as unambiguous as possible and not include "meaningless" 
                     else:
                         subject = "Invalid Post"
                         message = "Please set up the solution first before submitting your post. Instructions can be found in the sidebar."
-                        self.r.send_message(self.current_op, subject, message)
+                        self.r.send_message(self.game_acc, subject, message)
                         newest_post.remove()
 
 
