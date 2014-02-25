@@ -118,8 +118,8 @@ Post the next round and reply to the first correct answer with "+correct". The p
                 # check if any of the comments got it right
                 post = self.r.get_submission(submission_id=self.current_post, comment_sort='new')
                 for cmt in post.comments:
-                    if cmt.id in self.checked_comments:
-                        break
+#                    if cmt.id in self.checked_comments:
+#                       break
                     self.checked_comments.add(cmt.id)
                     if str(cmt.author).lower() == str(self.current_op).lower():
                         continue
