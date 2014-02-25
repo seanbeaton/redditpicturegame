@@ -16,7 +16,7 @@ class Constants:
 
 class Bot(object):
 
-    def __init__(self, game_password, solution, current_op, current_post, current_round):
+    def __init__(self, game_password, current_op, current_post, current_round):
         self.r = praw.Reddit(user_agent='/r/picturegame bot')
         self.r.login(config['USERNAME'], config['PASSWORD'])
         self.game_acc = self.r.get_redditor(config['GAMEACCOUNT'])
@@ -85,7 +85,6 @@ class Bot(object):
         reply.distinguish()
         self.post_up = False
         self.checked_comments = set()
-        self.solution = ''
         self.reset_game_password()
         self.correct_answer_time = time.time()
         # first update the op, then call flair_winner!
@@ -97,7 +96,7 @@ class Bot(object):
         won_post.set_flair(flair_text="ROUND OVER", flair_css_class="over")
         subject = "Congratulations, you can post the next round!"
         msg_text = 'The password for /u/%s is %s. DO NOT CHANGE THIS PASSWORD. It will be automatically changed once someone solves your riddle. \
-Please send your solution to me via the link in the sidebar, THEN post the next round. The post should have the format "Round %d: ...". \
+Post the next round and reply to the first correct answer with "+correct". The post should have the format "Round %d: ...". \
 The solution should be as unambiguous as possible, everything other than letters and digits will be ignored, as well as "filler" words like "and", "or", "the" etc. Please put your post up within \
 20 minutes starting from now.' % (self.game_acc, self.game_password, self.current_round)
         self.r.send_message(self.current_op, subject, msg_text)
@@ -129,29 +128,18 @@ The solution should be as unambiguous as possible, everything other than letters
                     if cmt.id in self.checked_comments:
                         break
                     self.checked_comments.add(cmt.id)
-                    if cmt.author == self.current_op:
+                    if str(cmt.author).lower() == str(self.current_op).lower():
                         continue
-                    text = cmt.body.lower()
-                    if text.startswith('guess: '):
-                        text = text.lstrip('guess:')
-                        if self.correct_answer(text):
+                    for reply in cmt.replies:
+                        if not (str(reply.author).lower() == str(self.game_acc).lower()):
+                            continue
+                        text = reply.body.lower()
+                        if text.startswith("+correct"):
                             self.win(cmt)
-                            break
 
             else:
                 # wait for the last winner to give us the new solution and put up the next post
                 newest_post, status = self.get_newest_post()
-                for msg in self.r.get_unread():
-                    msg.mark_as_read()
-                    if (str(msg.author) == self.current_op or str(msg.author) == str(self.game_acc)):
-                        if self.solution:
-                            subject = "Sorry..."
-                            message = "But you can't change the password during the round."
-                        else:
-                            subject = "Success"
-                            message = "Password successfully set."
-                            self.solution = self.sanitize(msg.body)
-                        self.r.send_message(self.game_acc, subject, message)
                 if status == Constants.NO_NEW_POST:
                     if time.time() - self.correct_answer_time > Constants.TWENTY_MINUTES:
                         subject = "OP inactivity"
@@ -164,14 +152,8 @@ The solution should be as unambiguous as possible, everything other than letters
                     self.r.send_message(self.game_acc, subject, message)
                     newest_post.remove()
                 elif status == Constants.VALID_POST:
-                    if self.solution:
-                        self.current_post = newest_post.id
-                        self.post_up = True
-                    else:
-                        subject = "Invalid Post"
-                        message = "Please set up the solution first before submitting your post. Instructions can be found in the sidebar."
-                        self.r.send_message(self.game_acc, subject, message)
-                        newest_post.remove()
+                    self.current_post = newest_post.id
+                    self.post_up = True
 
 
             time.sleep(2)
@@ -179,10 +161,9 @@ The solution should be as unambiguous as possible, everything other than letters
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 6:
+    if len(sys.argv) == 5:
         Bot(*sys.argv[1:]).run()
     else:
-        print """Please provide the current password to the picturegame account, the current
-solution, the current OP, the ID of the current post and the current round
+        print """Please provide the current password to the picturegame account, the current OP, the ID of the current post and the current round
 number as CLI argument."""
     
