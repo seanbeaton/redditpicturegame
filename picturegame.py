@@ -26,7 +26,6 @@ class Bot(object):
         self.current_round = int(current_round)
         self.current_op = current_op
         self.current_post = current_post
-        self.solution = solution
         self.checked_comments = set()
 
     def get_newest_post(self):
@@ -96,8 +95,7 @@ class Bot(object):
         won_post.set_flair(flair_text="ROUND OVER", flair_css_class="over")
         subject = "Congratulations, you can post the next round!"
         msg_text = 'The password for /u/%s is %s. DO NOT CHANGE THIS PASSWORD. It will be automatically changed once someone solves your riddle. \
-Post the next round and reply to the first correct answer with "+correct". The post should have the format "Round %d: ...". \
-The solution should be as unambiguous as possible, everything other than letters and digits will be ignored, as well as "filler" words like "and", "or", "the" etc. Please put your post up within \
+Post the next round and reply to the first correct answer with "+correct". The post should have the format "Round %d: ...". \ Please put your post up within \
 20 minutes starting from now.' % (self.game_acc, self.game_password, self.current_round)
         self.r.send_message(self.current_op, subject, msg_text)
 
@@ -113,11 +111,6 @@ The solution should be as unambiguous as possible, everything other than letters
             if ''.join(perm) == self.solution:
                 return True
         return False
-
-    def sanitize(self, text):
-        text = ''.join(filter(lambda x: x in string.ascii_letters + ' ' + string.digits, text))
-        text = ''.join(filter(lambda x: x not in Constants.IGNORE, text.split(' ')))
-        return text
 
     def run(self):
         while True:
@@ -164,6 +157,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 5:
         Bot(*sys.argv[1:]).run()
     else:
-        print """Please provide the current password to the picturegame account, the current OP, the ID of the current post and the current round
+        print """Please provide the current password to the picturegame account, \
+the current OP, the ID of the current post and the current round
 number as CLI argument."""
     
