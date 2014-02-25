@@ -138,7 +138,11 @@ Post the next round and reply to the first correct answer with "+correct". The p
                         subject = "OP inactivity"
                         message = "The current OP, /u/%s, didn't do anything with the account for twenty minutes." % (self.current_op,)
                         self.r.send_message('/r/' + config['SUBREDDIT'], subject, message)
-                        return
+                        subject = "Reminder"
+                        message = "Twenty minutes have passed. Please put up a post soon. ^(This message is sent to both your account and the game account.)"
+                        self.r.send_message(self.game_acc, subject, message)
+                        self.r.send_message(self.current_op, subject, message)
+                        self.correct_answer_time = time.time()
                 elif status == Constants.INVALID_POST:
                     subject = "Invalid Post"
                     message = "Please resubmit your post and put [Round XXX] at the beginning."
