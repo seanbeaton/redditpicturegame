@@ -127,7 +127,7 @@ Post the next round and reply to the first correct answer with "+correct". The p
                         if not (str(reply.author).lower() == str(self.game_acc).lower()):
                             continue
                         text = reply.body.lower()
-                        if text.startswith("+correct"):
+                        if "+correct" in text:
                             self.win(cmt)
 
             else:
