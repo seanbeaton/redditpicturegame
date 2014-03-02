@@ -5,6 +5,7 @@ import time
 import requests
 import itertools
 import sys
+import re
 from config import config
 
 class Constants:
@@ -78,9 +79,22 @@ class Bot(object):
                 new_flair = "Round" + new_flair[idx+1:]
         self.r.set_flair(config['SUBREDDIT'], self.current_op, flair_text=new_flair,
             flair_css_class="winner")
+            
+     def remove_last_flair(self):  # this should probably also give the user a fair play award.
+        cur_flair = self.r.get_flair(config['SUBREDDIT'], self.current_op)
+        new_flair = ''
+        if not cur_flair.get('flair_text', None):
+            new_flair = "Round %d" % (self.current_round,)
+        else:
+            new_flair = re.sub(", " + str(self.current_round-1), '', cur_flair['flair_text']) + ", Fair Play Award"#removes the part of flair that matches with the last round, and adds a fair play award
+            while len(new_flair) >= 64:
+                idx = new_flair.find(',')
+                new_flair = "Round" + new_flair[idx+1:]
+        self.r.set_flair(config['SUBREDDIT'], self.current_op, flair_text=new_flair,
+            flair_css_class="winner")
 
     def win(self, cmt):
-        reply = cmt.reply("Congratulations, that was the correct answer! Please continue the game as soon as possible. You have been PM'd the new account info.")
+        reply = cmt.reply("Congratulations, that was the correct answer! Please continue the game as soon as possible. You have been PM'd the new account info.\n\nIf you think someone else should have won this round, you can give them the round by replying '+give round' to their answer.")
         reply.distinguish()
         self.post_up = False
         self.checked_comments = set()
@@ -93,6 +107,22 @@ class Bot(object):
         won_post = self.r.get_submission(submission_id=self.current_post)
         self.current_post = ''
         won_post.set_flair(flair_text="ROUND OVER", flair_css_class="over")
+        subject = "Congratulations, you can post the next round!"
+        msg_text = 'The password for /u/%s is %s. DO NOT CHANGE THIS PASSWORD. It will be automatically changed once someone solves your riddle. \
+Post the next round and reply to the first correct answer with "+correct". The post should have the format "Round %d: ...". \ Please put your post up within \
+20 minutes starting from now.' % (self.game_acc, self.game_password, self.current_round)
+        self.r.send_message(self.current_op, subject, msg_text)
+        
+        
+    def give_win(self, cmt):
+        reply = cmt.reply("%s has decided that you should have won this round. Congratulations. Please continue the game as soon as possible. You have been PM'd the new account info.") % (self.current_op)
+        reply.distinguish()
+        self.reset_game_password()
+        self.correct_answer_time = time.time()
+        # remove the win from the first person, update the op, then call flair_winner!
+        self.remove_last_flair()
+        self.current_op = str(cmt.author)
+        self.flair_winner()
         subject = "Congratulations, you can post the next round!"
         msg_text = 'The password for /u/%s is %s. DO NOT CHANGE THIS PASSWORD. It will be automatically changed once someone solves your riddle. \
 Post the next round and reply to the first correct answer with "+correct". The post should have the format "Round %d: ...". \ Please put your post up within \
@@ -129,11 +159,14 @@ Post the next round and reply to the first correct answer with "+correct". The p
                         text = reply.body.lower()
                         if "+correct" in text:
                             self.win(cmt)
-
+                    
+            
+        
             else:
                 # wait for the last winner to give us the new solution and put up the next post
                 newest_post, status = self.get_newest_post()
                 if status == Constants.NO_NEW_POST:
+                    
                     if time.time() - self.correct_answer_time > Constants.TWENTY_MINUTES:
                         subject = "OP inactivity"
                         message = "The current OP, /u/%s, didn't do anything with the account for twenty minutes." % (self.current_op,)
@@ -151,6 +184,17 @@ Post the next round and reply to the first correct answer with "+correct". The p
                 elif status == Constants.VALID_POST:
                     self.current_post = newest_post.id
                     self.post_up = True
+                    
+            if not self.post_up:    #if the next post isn't up yet, see if the previous winner wants to give it to someone else.
+                post = self.r.get_submission(submission_id=self.current_post, comment_sort='new')
+                for cmt in post.comments:
+                    for reply in cmt.replies:
+                        if (str(cmt.author).lower() == str(self.current_op).lower()):
+                        text = cmt.body.lower()
+                        if "+give round" in text:
+                            self.give_win(cmt)
+                            
+            
 
 
             time.sleep(2)
