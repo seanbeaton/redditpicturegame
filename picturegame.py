@@ -165,6 +165,7 @@ Post the next round and reply to the first correct answer with "+correct". The p
                         text = reply.body.lower()
                         if "+correct" in text:
                             self.win(cmt)
+                            break
 
 
 
@@ -201,6 +202,7 @@ Post the next round and reply to the first correct answer with "+correct". The p
                         print text
                         if "+give round" in text:
                             self.give_win(comment)
+                            break
 
 
 
