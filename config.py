@@ -2,7 +2,7 @@ config = {
     #update those values accordingly
 
     #account data for the mod account
-    'USERNAME': 'picturegamebot'
+    'USERNAME': 'picturegamebot',
     'PASSWORD': '9NxeNVAljuwL80KT01m7',
 
     #the account that posts the rounds

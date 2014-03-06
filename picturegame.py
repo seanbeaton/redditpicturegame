@@ -28,6 +28,7 @@ class Bot(object):
         self.current_op = current_op
         self.current_post = current_post
         self.checked_comments = set()
+        self.round_given = False
 
     def get_newest_post(self):
         posts = self.r.get_subreddit(config['SUBREDDIT']).get_new()
@@ -80,7 +81,8 @@ class Bot(object):
         self.r.set_flair(config['SUBREDDIT'], self.current_op, flair_text=new_flair,
             flair_css_class="winner")
 
-     def remove_last_flair(self):  # this should probably also give the user a fair play award.
+
+    def remove_last_flair(self):
         cur_flair = self.r.get_flair(config['SUBREDDIT'], self.current_op)
         new_flair = ''
         if not cur_flair.get('flair_text', None):
@@ -93,18 +95,21 @@ class Bot(object):
         self.r.set_flair(config['SUBREDDIT'], self.current_op, flair_text=new_flair,
             flair_css_class="winner")
 
+
     def win(self, cmt):
         reply = cmt.reply("Congratulations, that was the correct answer! Please continue the game as soon as possible. You have been PM'd the new account info.\n\nIf you think someone else should have won this round, you can give them the round by replying '+give round' to their answer.")
         reply.distinguish()
         self.post_up = False
         self.checked_comments = set()
-        self.reset_game_password()
+#        self.reset_game_password()
         self.correct_answer_time = time.time()
         # first update the op, then call flair_winner!
         self.current_op = str(cmt.author)
         self.flair_winner()
+        self.round_given = False
         self.current_round += 1
         won_post = self.r.get_submission(submission_id=self.current_post)
+        self.prev_post = self.current_post
         self.current_post = ''
         won_post.set_flair(flair_text="ROUND OVER", flair_css_class="over")
         subject = "Congratulations, you can post the next round!"
@@ -114,15 +119,16 @@ Post the next round and reply to the first correct answer with "+correct". The p
         self.r.send_message(self.current_op, subject, msg_text)
 
 
-    def give_win(self, cmt):
-        reply = cmt.reply("%s has decided that you should have won this round. Congratulations. Please continue the game as soon as possible. You have been PM'd the new account info.") % (self.current_op)
+    def give_win(self, comment):
+        reply = comment.reply("%s has decided that you should have won this round. Congratulations. Please continue the game as soon as possible. You have been PM'd the new account info." % (str(self.current_op),))
         reply.distinguish()
-        self.reset_game_password()
+#        self.reset_game_password()
         self.correct_answer_time = time.time()
         # remove the win from the first person, update the op, then call flair_winner!
         self.remove_last_flair()
-        self.current_op = str(cmt.author)
+        self.current_op = str(comment.author)
         self.flair_winner()
+        self.round_given = True
         subject = "Congratulations, you can post the next round!"
         msg_text = 'The password for /u/%s is %s. DO NOT CHANGE THIS PASSWORD. It will be automatically changed once someone solves your riddle. \
 Post the next round and reply to the first correct answer with "+correct". The post should have the format "Round %d: ...". \ Please put your post up within \
@@ -185,14 +191,16 @@ Post the next round and reply to the first correct answer with "+correct". The p
                     self.current_post = newest_post.id
                     self.post_up = True
 
-            if not self.post_up:    #if the next post isn't up yet, see if the previous winner wants to give it to someone else.
-                post = self.r.get_submission(submission_id=self.current_post, comment_sort='new')
-                for cmt in post.comments:
-                    for reply in cmt.replies:
-                        if (str(cmt.author).lower() == str(self.current_op).lower()):
-                        text = cmt.body.lower()
+            if (not self.post_up and not self.round_given):    #if the next post isn't up yet, see if the previous winner wants to give it to someone else.
+                print str(self.prev_post)
+                post = self.r.get_submission(submission_id=self.prev_post, comment_sort='new')
+                for comment in post.comments:
+                    for c_reply in comment.replies:
+                        if ((str(c_reply.author)).lower() == str(self.current_op).lower()):
+                            text = c_reply.body.lower()
+                        print text
                         if "+give round" in text:
-                            self.give_win(cmt)
+                            self.give_win(comment)
 
 
 
