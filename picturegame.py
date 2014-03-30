@@ -97,7 +97,7 @@ class Bot(object):
 
 
     def win(self, cmt):
-        reply = cmt.reply("Congratulations, that was the correct answer! Please continue the game as soon as possible. You have been PM'd the new account info.\n\nIf you think someone else should have won this round, you can give them the round by replying '+give round' to their answer.")
+        reply = cmt.reply("Congratulations, that was the correct answer! Please continue the game as soon as possible. You have been PM'd instructions for continuing the game.\n\nIf you think someone else should have won this round, you can give them the round by replying '+give round' to their answer.")
         reply.distinguish()
         self.post_up = False
         self.checked_comments = set()
@@ -114,13 +114,13 @@ class Bot(object):
         won_post.set_flair(flair_text="ROUND OVER", flair_css_class="over")
         subject = "Congratulations, you can post the next round!"
         msg_text = 'The password for /u/%s is %s. DO NOT CHANGE THIS PASSWORD. It will be automatically changed once someone solves your riddle. \
-Post the next round and reply to the first correct answer with "+correct". The post should have the format "Round %d: ...". \ Please put your post up within \
+Post the next round and reply to the first correct answer with "+correct". The post must have "[Round %d]" in the title. \ Please put your post up within \
 20 minutes starting from now.' % (self.game_acc, self.game_password, self.current_round)
         self.r.send_message(self.current_op, subject, msg_text)
 
 
     def give_win(self, comment):
-        reply = comment.reply("%s has decided that you should have won this round. Congratulations. Please continue the game as soon as possible. You have been PM'd the new account info." % (str(self.current_op),))
+        reply = comment.reply("%s has decided that you should have won this round. Congratulations. Please continue the game as soon as possible. You have been PM'd the intructions to continue the game." % (str(self.current_op),))
         reply.distinguish()
 #        self.reset_game_password()
         self.correct_answer_time = time.time()
@@ -131,7 +131,7 @@ Post the next round and reply to the first correct answer with "+correct". The p
         self.round_given = True
         subject = "Congratulations, you can post the next round!"
         msg_text = 'The password for /u/%s is %s. DO NOT CHANGE THIS PASSWORD. It will be automatically changed once someone solves your riddle. \
-Post the next round and reply to the first correct answer with "+correct". The post should have the format "Round %d: ...". \ Please put your post up within \
+Post the next round and reply to the first correct answer with "+correct". The post must have "[Round %d]" in the title. \ Please put your post up within \
 20 minutes starting from now.' % (self.game_acc, self.game_password, self.current_round)
         self.r.send_message(self.current_op, subject, msg_text)
 
@@ -185,7 +185,7 @@ Post the next round and reply to the first correct answer with "+correct". The p
                         self.correct_answer_time = time.time()
                 elif status == Constants.INVALID_POST:
                     subject = "Invalid Post"
-                    message = "Please resubmit your post and put [Round XXX] at the beginning."
+                    message = "Please resubmit your post and put [Round XXXX] at the beginning."
                     self.r.send_message(self.game_acc, subject, message)
                     newest_post.remove()
                 elif status == Constants.VALID_POST:
