@@ -196,8 +196,10 @@ Post the next round and reply to the first correct answer with "+correct". The p
                 print str(self.prev_post)
                 post = self.r.get_submission(submission_id=self.prev_post, comment_sort='new')
                 inbox = self.r.get_inbox()
+                self.mods = ["malz_", "Hoonster", "MrWittyResponse", "tara1", "vxx", "pyrowolf8", "AutoModerator", "Rachat21", "T_Dumbsford", "whycuthair", "frankie_v", "Greypo", "anhedoni", "xvvhiteboy", "r_Picturegame"]
                 for (message in inbox):
-                    if (message.author = "malz_") and ("+restart" in message.body.lower()):
+                    if (message.author in self.mods) and ("+restart" in message.body.lower()):
+                        print (message.author + " has reset the game")
                         self.text = message.body.split()
                         self.newOP = self.text[1]
                         self.newPW = self.text[2]
