@@ -195,6 +195,14 @@ Post the next round and reply to the first correct answer with "+correct". The p
             if (not self.post_up and not self.round_given):    #if the next post isn't up yet, see if the previous winner wants to give it to someone else.
                 print str(self.prev_post)
                 post = self.r.get_submission(submission_id=self.prev_post, comment_sort='new')
+                inbox = self.r.get_inbox()
+                for (message in inbox):
+                    if (message.author = "malz_") and ("+restart" in message.body.lower()):
+                        self.text = message.body.split()
+                        self.newOP = self.text[1]
+                        self.newPW = self.text[2]
+                        self.game_acc = self.newOP
+                        self.game_password = self.newPW
                 for comment in post.comments:
                     for c_reply in comment.replies:
                         if ((str(c_reply.author)).lower() == str(self.current_op).lower()):
