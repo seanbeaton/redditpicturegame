@@ -67,6 +67,8 @@ class Bot(object):
             response = client.post('http://www.reddit.com/api/update', data=data, headers=headers)
         self.game_password = new_password
         print self.game_password
+        with open("pastpasswords.txt", "a") as thispass:
+            thispass.write(self.game_password)
 
         # just to make sure we didn't muck up any login data
         self.r.login(config['USERNAME'], config['PASSWORD'])
