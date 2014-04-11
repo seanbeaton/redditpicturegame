@@ -19,6 +19,7 @@ class Bot(object):
 
     def __init__(self, game_password, current_op, current_post, current_round):
         self.r = praw.Reddit(user_agent='/r/picturegame bot')
+        print("started")
         self.r.login(config['USERNAME'], config['PASSWORD'])
         self.game_acc = self.r.get_redditor(config['GAMEACCOUNT'])
         self.game_password = game_password
@@ -54,6 +55,8 @@ class Bot(object):
         while response.status_code != 200:
             time.sleep(2)
             response = client.post('https://ssl.reddit.com/api/login', data=data, headers=headers)
+
+        print (str(response.json()['json']))
         modhash = response.json()['json']['data']['modhash']
         new_password = self.get_random_password()
         data = {'api_type': 'json', 'uh': modhash, 'curpass': self.game_password,
@@ -64,6 +67,7 @@ class Bot(object):
             response = client.post('http://www.reddit.com/api/update', data=data, headers=headers)
         self.game_password = new_password
         print self.game_password
+
         # just to make sure we didn't muck up any login data
         self.r.login(config['USERNAME'], config['PASSWORD'])
 
@@ -101,13 +105,15 @@ class Bot(object):
         reply.distinguish()
         self.post_up = False
         self.checked_comments = set()
-#        self.reset_game_password()
+        self.reset_game_password()
         self.correct_answer_time = time.time()
         # first update the op, then call flair_winner!
         self.current_op = str(cmt.author)
         self.flair_winner()
         self.round_given = False
         self.current_round += 1
+        print self.current_post #test
+        
         won_post = self.r.get_submission(submission_id=self.current_post)
         self.prev_post = self.current_post
         self.current_post = ''
@@ -122,7 +128,8 @@ Post the next round and reply to the first correct answer with "+correct". The p
     def give_win(self, comment):
         reply = comment.reply("%s has decided that you should have won this round. Congratulations. Please continue the game as soon as possible. You have been PM'd the intructions to continue the game." % (str(self.current_op),))
         reply.distinguish()
-#        self.reset_game_password()
+        self.post_up = False
+        self.reset_game_password()
         self.correct_answer_time = time.time()
         # remove the win from the first person, update the op, then call flair_winner!
         self.remove_last_flair()
@@ -131,7 +138,7 @@ Post the next round and reply to the first correct answer with "+correct". The p
         self.round_given = True
         subject = "Congratulations, you can post the next round!"
         msg_text = 'The password for /u/%s is %s. DO NOT CHANGE THIS PASSWORD. It will be automatically changed once someone solves your riddle. \
-Post the next round and reply to the first correct answer with "+correct". The post must have "[Round %d]" in the title. \ Please put your post up within \
+Post the next round and reply to the first correct answer with "+correct". The post must have "[Round %d]" in the title. Please put your post up within \
 20 minutes starting from now.' % (self.game_acc, self.game_password, self.current_round)
         self.r.send_message(self.current_op, subject, msg_text)
 
@@ -153,19 +160,27 @@ Post the next round and reply to the first correct answer with "+correct". The p
             if self.post_up:
                 # check if any of the comments got it right
                 post = self.r.get_submission(submission_id=self.current_post, comment_sort='new')
+                roundwon = False
                 for cmt in post.comments:
+                    if not roundwon:
+                        print("checking for answers in " + cmt.body)
+                    
 #                    if cmt.id in self.checked_comments:
 #                       break
-                    self.checked_comments.add(cmt.id)
-                    if str(cmt.author).lower() == str(self.current_op).lower():
-                        continue
-                    for reply in cmt.replies:
-                        if not (str(reply.author).lower() == str(self.game_acc).lower()):
+                        self.checked_comments.add(cmt.id)
+                        if str(cmt.author).lower() == str(self.current_op).lower():
                             continue
-                        text = reply.body.lower()
-                        if "+correct" in text:
-                            self.win(cmt)
-                            break
+                        for reply in cmt.replies:
+                            if not (str(reply.author).lower() == str(self.game_acc).lower()):
+                                continue
+                            text = reply.body.lower()
+                            if ("+correct" in text and roundwon == False):
+                                print("found answer")
+                                self.win(cmt)
+                                roundwon = True
+                                print("winner has been assigned! ")
+                                
+            
 
 
 
@@ -173,7 +188,8 @@ Post the next round and reply to the first correct answer with "+correct". The p
                 # wait for the last winner to give us the new solution and put up the next post
                 newest_post, status = self.get_newest_post()
                 if status == Constants.NO_NEW_POST:
-
+                    print ("looking for a new post...")
+    
                     if time.time() - self.correct_answer_time > Constants.TWENTY_MINUTES:
                         subject = "OP inactivity"
                         message = "The current OP, /u/%s, didn't do anything with the account for twenty minutes." % (self.current_op,)
@@ -197,9 +213,8 @@ Post the next round and reply to the first correct answer with "+correct". The p
                 post = self.r.get_submission(submission_id=self.prev_post, comment_sort='new')
                 inbox = self.r.get_inbox()
                 self.mods = ["malz_", "Hoonster", "MrWittyResponse", "tara1", "vxx", "pyrowolf8", "AutoModerator", "Rachat21", "T_Dumbsford", "whycuthair", "frankie_v", "Greypo", "anhedoni", "xvvhiteboy", "r_Picturegame"]
-                for (message in inbox):
+                for message in inbox:
                     if (message.author in self.mods) and ("+restart" in message.body.lower()):
-                        print (message.author + " has reset the game")
                         self.text = message.body.split()
                         self.newOP = self.text[1]
                         self.newPW = self.text[2]
@@ -225,6 +240,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 5:
         Bot(*sys.argv[1:]).run()
     else:
+        Bot("D0EMsLI4", "sylkhr", "227qwx", 34).run()
         print """Please provide the current password to the picturegame account, \
 the current OP, the ID of the current post and the current round
 number as CLI argument."""
