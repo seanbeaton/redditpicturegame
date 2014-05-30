@@ -49,6 +49,7 @@ class Bot(object):
     def reset_game_password(self):
         # PRAW does not offer a password change feature. We're doing this manually
         client = requests.session()
+        print("I'm going to try this password: " + self.game_password)
         data = {'api_type': 'json', 'user': self.game_acc, 'passwd': self.game_password}
         headers = {'User-Agent': '/r/picturegame bot'}
         response = client.post('https://ssl.reddit.com/api/login', data=data, headers=headers)
@@ -68,7 +69,7 @@ class Bot(object):
         self.game_password = new_password
         print self.game_password
         with open("pastpasswords.txt", "a") as thispass:
-            thispass.write(self.game_password)
+            thispass.write(str(self.game_password + "\n"))
 
         # just to make sure we didn't muck up any login data
         self.r.login(config['USERNAME'], config['PASSWORD'])
@@ -103,7 +104,7 @@ class Bot(object):
 
 
     def win(self, cmt):
-        reply = cmt.reply("Congratulations, that was the correct answer! Please continue the game as soon as possible. You have been PM'd instructions for continuing the game.\n\nIf you think someone else should have won this round, you can give them the round by replying '+give round' to their answer.")
+        reply = cmt.reply("Congratulations, that was the correct answer! Please continue the game as soon as possible. You have been PM'd instructions for continuing the game.") #\n\nIf you think someone else should have won this round, you can give them the round by replying '+give round' to their answer.
         reply.distinguish()
         self.post_up = False
         self.checked_comments = set()
@@ -165,6 +166,12 @@ Post the next round and reply to the first correct answer with "+correct". The p
                 roundwon = False
                 for cmt in post.comments:
                     if not roundwon:
+                        self.mods = ["malz_", "Hoonster", "MrWittyResponse", "tara1", "vxx", "pyrowolf8", "AutoModerator", "Rachat21", "T_Dumbsford", "whycuthair", "frankie_v", "Greypo", "anhedoni", "xvvhiteboy", "r_Picturegame"]
+                        inbox = self.r.get_inbox()
+                        for message in inbox:
+                            if (message.author in self.mods) and ("+pass" in message.body.lower()):
+                                self.r.send_message('/r/' + config['SUBREDDIT'], "Current game account password", "The current password to /u/%s is %s") % (self.game_acc, self.game_password)
+                
                         print("checking for answers in " + cmt.body)
                     
 #                    if cmt.id in self.checked_comments:
@@ -242,7 +249,11 @@ if __name__ == "__main__":
     if len(sys.argv) == 5:
         Bot(*sys.argv[1:]).run()
     else:
-        Bot("D0EMsLI4", "sylkhr", "227qwx", 34).run()
+        with open("pastpasswords.txt", "r") as passes:
+            lines = passes.readlines()
+        pswd = lines[-1]
+        
+        Bot(pswd, "habenyeros", "", 300).run()
         print """Please provide the current password to the picturegame account, \
 the current OP, the ID of the current post and the current round
 number as CLI argument."""
